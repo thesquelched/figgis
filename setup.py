@@ -2,14 +2,16 @@ import os.path
 from setuptools import setup
 
 
-
 if __name__ == '__main__':
-    with open(os.path.join(os.path.dirname(__file__), 'CHANGELOG.md')) as f:
-        CHANGELOG = f.read().strip()
+    try:
+        with open(os.path.join(os.path.dirname(__file__), 'CHANGELOG.md')) as f:
+            CHANGELOG = f.read().strip()
+    except IOError:
+        CHANGELOG = ''
 
     setup(
         name='figgis',
-        version='1.0.0',
+        version='1.0.1',
 
         description="Checked YAML configuration",
         long_description=CHANGELOG,

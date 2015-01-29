@@ -1,5 +1,8 @@
-__version__ = '1.4'
+__version__ = '1.0.1'
 __all__ = ['Field', 'ListField', 'Config', 'ValidationError', 'PropertyError']
+
+
+from inspect import isclass
 
 
 TRUTHY = {1L, 1, 'true', 'True', 'yes', '1', True}
@@ -147,12 +150,13 @@ class Field(object):
         propstring = '({})'.format(', '.join(props))
         if self.help:
             desc = '{} - {}'.format(propstring, self.help)
-        elif issubclass(self.type, Config) and hasattr(self.type, '__help__'):
+        elif (isclass(self.type) and issubclass(self.type, Config) and
+              hasattr(self.type, '__help__')):
             desc = '{} - {}'.format(propstring, self.type.__help__)
         else:
             desc = propstring
 
-        if issubclass(self.type, Config):
+        if isclass(self.type) and issubclass(self.type, Config):
             return '{}\n{}'.format(desc, indent(self.type.describe()))
 
         return desc
@@ -179,7 +183,8 @@ class Field(object):
             raise ValueError
 
     def coerce(self, value):
-        if isinstance(value, self.type):
+        type_or_class = (isclass(self.type) or isinstance(self.type, type))
+        if type_or_class and isinstance(value, self.type):
             return value
         elif self.type is bool:
             return self.coerce_bool(value)
@@ -191,7 +196,7 @@ class Field(object):
             # Null values are only invalid if the field is required or if the
             # default isn't None
             return self.required or self.default is not None
-        elif issubclass(self.type, Config):
+        elif isclass(self.type) and issubclass(self.type, Config):
             return not isinstance(value, (self.type, dict))
         else:
             try:
@@ -222,7 +227,7 @@ class Field(object):
         if field_value is None:
             return None
 
-        if issubclass(self.type, Config):
+        if isclass(self.type) and issubclass(self.type, Config):
             for fname, field in self.type._fields.items():
                 field.normalize(field_value, fname, prefix=prefixed)
 
