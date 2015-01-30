@@ -16,7 +16,7 @@ if __name__ == '__main__':
         name='figgis',
         version='1.4.0',
 
-        description="Checked YAML configuration",
+        description="Python declarative data validation",
         long_description=CHANGELOG,
 
         author='Scott Kruger',
