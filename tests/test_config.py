@@ -286,11 +286,31 @@ def test_inheritance_mro():
 def test_translation():
     class TestConfig(Config):
 
-        __translate__ = {
-            '@foo': 'foo',
-        }
-
-        foo = Field(int, required=True)
+        foo = Field(int, required=True, key='@foo')
 
     tc = TestConfig({'@foo': 111})
     assert tc.foo == 111
+
+
+def test_translation_inheritance():
+    class Parent(Config):
+
+        bar = Field(int, required=True, key='@foo')
+
+    class Child(Config):
+
+        __inherits__ = [Parent]
+
+    child = Child({'@foo': 111})
+    assert child.bar == 111
+
+
+def test_translation_nested():
+    class Conf1(Config):
+        attributes = Field(int, required=True, key='@attr')
+
+    class TestConf(Config):
+        conf1 = Field(Conf1)
+
+    child = TestConf({'conf1': {'@attr': 111}})
+    assert child.conf1.attributes == 111

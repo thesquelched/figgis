@@ -1,8 +1,8 @@
-__version__ = '1.3.0'
+__version__ = '1.4.0'
 __all__ = ['Field', 'ListField', 'Config', 'ValidationError', 'PropertyError']
 
 
-from inspect import isclass
+from inspect import isclass, isfunction
 import six
 
 
@@ -67,15 +67,10 @@ class Field(object):
 
     Sometimes, you may need to consume data for which some keys can not be
     expressed as a python identifier, e.g. `@attr`.  In this case, you may use
-    the `__translate__` attribute to provide a mapping from the data to your
-    fields:
+    the `key` option to provide a mapping from the data to your fields:
 
     >>> class Translated(Config):
-    ...     __translate__ = {
-    ...         '@crazy_key@': 'crazy_key',
-    ...     }
-    ...
-    ...     crazy_key = Field(required=True)
+    ...     crazy_key = Field(required=True, key='@crazy_key')
     >>> Translated({'@crazy_key@': 'value'}).crazy_key
     'value'
     """
@@ -87,7 +82,8 @@ class Field(object):
                  validator=None,
                  choices=None,
                  help=None,
-                 hidden=False):
+                 hidden=False,
+                 key=None):
         if type is None:
             type = str
 
@@ -100,6 +96,7 @@ class Field(object):
         self._choices = set(choices) if choices else None
         self._help = help
         self._hidden = hidden
+        self._key = key
 
         # Has to be done after all other options are set so that
         # base_validators can correctly create validators from field options
@@ -224,6 +221,9 @@ class Field(object):
             return self.required or self.default is not None
         elif isclass(self.type) and issubclass(self.type, Config):
             return not isinstance(value, (self.type, dict))
+        elif isfunction(self.type):
+            # Assume data parsed by custom functions is valid
+            return False
         else:
             try:
                 # Attempt to coerce value
@@ -233,13 +233,15 @@ class Field(object):
                 return True
 
     def normalize(self, config, name, prefix=None):
+        config_key = self._key or name
+
         prefixed = name if prefix is None else '{0}.{1}'.format(prefix, name)
-        if name not in config:
+        if config_key not in config:
             if self.required:
                 raise PropertyError('Missing property: {0}'.format(prefixed))
             config[name] = self.default
 
-        conf_value = config[name]
+        conf_value = config[config_key]
         normalized = self.normalize_field(conf_value, name, prefixed)
         self.validate(normalized, prefixed)
 
@@ -390,19 +392,12 @@ class Config(object):
     ...     name = Field()
     """
 
-    __translate__ = None
-
     def __init__(self, properties=None, **kwArgs):
         if properties is None:
             properties = {}
 
         combined = properties.copy()
         combined.update(kwArgs)
-
-        if self.__translate__:
-            for key, translation in self.__translate__.items():
-                if key in combined:
-                    combined[translation] = combined.pop(key)
 
         self._properties = self._normalize(combined)
 
