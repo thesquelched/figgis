@@ -1,4 +1,4 @@
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 __all__ = ['Field', 'ListField', 'Config', 'ValidationError', 'PropertyError']
 
 
@@ -32,8 +32,9 @@ class Field(object):
 
     """
     Represents a typed field in a configuration file.  `type` may be a python
-    type (e.g. `int`, `str`, `float`, `dict`), or it can be another
-    :class:`Config` object.
+    type (e.g. `int`, `str`, `float`, `dict`), another :class:`Config` object,
+    or a function/lambda that takes a single argument and returns the desired
+    parsed value.
 
     When a :class:`Config` is instantiated, each field is type-checked against
     the corresponding value.  You may provide additional validation by passing
@@ -139,7 +140,7 @@ class Field(object):
     def hidden(self):
         return self._hidden
 
-    def describe(self):
+    def describe_properties(self):
         props = ['type={0}'.format(self.pretty_type)]
         if self.required:
             props.append('required')
@@ -152,6 +153,11 @@ class Field(object):
                 choicestr += ', ...'
 
             props.append('choices=[{0}]'.format(choicestr))
+
+        return props
+
+    def describe(self):
+        props = self.describe_properties()
 
         propstring = '({0})'.format(', '.join(props))
         if self.help:
@@ -326,8 +332,17 @@ class ConfigMeta(type):
 
     def __new__(cls, name, bases, dct):
         # Normalization
-        fields = dict((key, value) for key, value in dct.items()
-                      if isinstance(value, Field))
+        fields = dict()
+
+        # Preserve MRO by reversing inheritance list; first parent overwrites
+        # everything before it
+        inherits = reversed(dct.get('__inherits__', []))
+        for parent in inherits:
+            fields.update(parent._fields)
+
+        fields.update((key, value) for key, value in dct.items()
+                      if not key.startswith('__') and isinstance(value, Field))
+
         dct['_fields'] = fields
         dct['_normalize'] = normalizer(fields)
 
@@ -348,6 +363,17 @@ class Config(object):
     When you create a :class:`Config` instance, you pass to it parameters as
     you would a `dict`.  Similar to a `dict`, you can either use keyword
     arguments or pass in an actual `dict` object.
+
+    If you wish to inherit from another :class:`Config`, do not do it in the
+    traditional class inheritance sense.  Instead, specify any parents using
+    the `__inherits__` attribute:
+
+    >>> class Parent(Config):
+   ...      id = Field(int, required=True)
+    >>> class Child(Config):
+    ...     __inherits__ = [Parent]
+    ...
+    ...     name = Field()
     """
 
     def __init__(self, properties=None, **kwArgs):

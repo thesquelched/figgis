@@ -242,3 +242,42 @@ def test_coerce():
 
     tc = TestConfig()
     tc._fields['value'].coerce(SubConfig(value=1))
+
+
+def test_inheritance():
+    class Parent1(Config):
+        field1 = Field(default='one')
+
+    class Parent2(Config):
+        field2 = Field(default='two')
+
+    class TestConfig(Config):
+        __inherits__ = [Parent1, Parent2]
+
+        field3 = Field(default='three')
+
+    tc = TestConfig()
+
+    assert tc.field1 == 'one'
+    assert tc.field2 == 'two'
+    assert tc.field3 == 'three'
+
+
+def test_inheritance_mro():
+    class Parent1(Config):
+        field1 = Field(default='parent1')
+        field2 = Field(default='parent1')
+
+    class Parent2(Config):
+        field1 = Field(default='parent2')
+        field2 = Field(default='parent2')
+
+    class TestConfig(Config):
+        __inherits__ = [Parent1, Parent2]
+
+        field2 = Field(default='testconfig')
+
+    tc = TestConfig()
+
+    assert tc.field1 == 'parent1'
+    assert tc.field2 == 'testconfig'

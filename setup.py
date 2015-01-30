@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     setup(
         name='figgis',
-        version='1.1.0',
+        version='1.2.0',
 
         description="Checked YAML configuration",
         long_description=CHANGELOG,
