@@ -3,10 +3,15 @@ __all__ = ['Field', 'ListField', 'Config', 'ValidationError', 'PropertyError']
 
 
 from inspect import isclass
+import six
 
 
-TRUTHY = {1L, 1, 'true', 'True', 'yes', '1', True}
-FALSEY = {0L, 0, 'false', 'False', 'no', '0', False}
+if six.PY3:
+    long = int
+
+
+TRUTHY = frozenset((long(1), 1, 'true', 'True', 'yes', '1', True))
+FALSEY = frozenset((long(0), 0, 'false', 'False', 'no', '0', False))
 
 
 def indent(value, size=2):
@@ -24,6 +29,7 @@ class PropertyError(KeyError):
 
 
 class Field(object):
+
     """
     Represents a typed field in a configuration file.  `type` may be a python
     type (e.g. `int`, `str`, `float`, `dict`), or it can be another
@@ -40,7 +46,7 @@ class Field(object):
     ...     suffix = Field(default='St.', choices=['St.', 'Ave.'])  # optional
     ...
     ...     def __str__(self):
-    ...         return '{} {} {}'.format(
+    ...         return '{0} {1} {2}'.format(
     ...             self.number, self.street, self.suffix)
     >>> class Person(Config):
     ...     name = Field(required=True)
@@ -54,7 +60,7 @@ class Field(object):
     ...         street='Easy',
     ...     )
     ... )
-    >>> print '{}, age {}, lives at {}'.format(
+    >>> print '{0}, age {1}, lives at {2}'.format(
     ...     joe.name, joe.age, joe.address)
     Joe, age 45, lives at 123 Easy St.
     """
@@ -93,7 +99,7 @@ class Field(object):
 
     def choice_validator(self, value):
         if value not in self.choices:
-            raise ValidationError("Value '{}' is not a valid choice".format(
+            raise ValidationError("Value '{0}' is not a valid choice".format(
                 value))
 
         return True
@@ -134,30 +140,30 @@ class Field(object):
         return self._hidden
 
     def describe(self):
-        props = ['type={}'.format(self.pretty_type)]
+        props = ['type={0}'.format(self.pretty_type)]
         if self.required:
             props.append('required')
         if self.default is not None:
-            props.append('default={}'.format(self.default))
+            props.append('default={0}'.format(self.default))
         if self.choices:
             choices = sorted(self.choices)
             choicestr = ', '.join(repr(item) for item in choices)
             if len(choices) > 10:
                 choicestr += ', ...'
 
-            props.append('choices=[{}]'.format(choicestr))
+            props.append('choices=[{0}]'.format(choicestr))
 
-        propstring = '({})'.format(', '.join(props))
+        propstring = '({0})'.format(', '.join(props))
         if self.help:
-            desc = '{} - {}'.format(propstring, self.help)
+            desc = '{0} - {1}'.format(propstring, self.help)
         elif (isclass(self.type) and issubclass(self.type, Config) and
               hasattr(self.type, '__help__')):
-            desc = '{} - {}'.format(propstring, self.type.__help__)
+            desc = '{0} - {1}'.format(propstring, self.type.__help__)
         else:
             desc = propstring
 
         if isclass(self.type) and issubclass(self.type, Config):
-            return '{}\n{}'.format(desc, indent(self.type.describe()))
+            return '{0}\n{1}'.format(desc, indent(self.type.describe()))
 
         return desc
 
@@ -168,11 +174,11 @@ class Field(object):
         for validator in self.validators:
             try:
                 if not validator(normalized):
-                    raise ValidationError("Field '{}' is invalid".format(
+                    raise ValidationError("Field '{0}' is invalid".format(
                         prefixed))
             except ValidationError as ex:
-                raise ValidationError("Field '{}' is invalid: {}".format(
-                    prefixed, ex.message))
+                raise ValidationError("Field '{0}' is invalid: {1}".format(
+                    prefixed, ex))
 
     def coerce_bool(self, value):
         if value in TRUTHY:
@@ -207,10 +213,10 @@ class Field(object):
                 return True
 
     def normalize(self, config, name, prefix=None):
-        prefixed = name if prefix is None else '{}.{}'.format(prefix, name)
+        prefixed = name if prefix is None else '{0}.{1}'.format(prefix, name)
         if name not in config:
             if self.required:
-                raise PropertyError('Missing property: {}'.format(prefixed))
+                raise PropertyError('Missing property: {0}'.format(prefixed))
             config[name] = self.default
 
         conf_value = config[name]
@@ -221,7 +227,7 @@ class Field(object):
 
     def normalize_field(self, field_value, name, prefixed):
         if self.invalid_type(field_value, prefixed):
-            raise ValidationError('Property {} is not of type {}'.format(
+            raise ValidationError('Property {0} is not of type {1}'.format(
                 prefixed, self.type.__name__))
 
         if field_value is None:
@@ -235,6 +241,7 @@ class Field(object):
 
 
 class ListField(Field):
+
     """
     Similar to :class:`Field`, except that it expects a list of objects instead
     of a single object.
@@ -251,20 +258,20 @@ class ListField(Field):
     ...     ]
     ... )
     >>> for product in catalog.products:
-    ...     print '{} costs {}'.format(product.name, product.price)
+    ...     print '{0} costs {1}'.format(product.name, product.price)
     Orange costs 0.79
     Apple costs 0.59
     """
 
     @property
     def pretty_type(self):
-        return 'list({})'.format(Field.pretty_type.fget(self))
+        return 'list({0})'.format(Field.pretty_type.fget(self))
 
     def choice_validator(self, values):
         for value in values:
             if value not in self.choices:
                 raise ValidationError(
-                    "Value '{}' is not a valid choice".format(value))
+                    "Value '{0}' is not a valid choice".format(value))
 
         return True
 
@@ -276,14 +283,14 @@ class ListField(Field):
 
     def normalize_field(self, field_value, name, prefixed):
         if not self.is_list(field_value):
-            raise ValidationError('Field {} is not a list'.format(prefixed))
+            raise ValidationError('Field {0} is not a list'.format(prefixed))
 
         if field_value is None:
             field_value = []
 
         values = []
         for i, value in enumerate(field_value):
-            prefix = '{}.{}'.format(prefixed, i)
+            prefix = '{0}.{1}'.format(prefixed, i)
             normalized = super(ListField, self).normalize_field(
                 value, name, prefix)
             values.append(normalized)
@@ -311,6 +318,7 @@ def autoproperty(key):
 
 
 class ConfigMeta(type):
+
     """
     Metaclass for configuration objects.  Do not use this directly; instead,
     use :class:`Config`.
@@ -318,8 +326,8 @@ class ConfigMeta(type):
 
     def __new__(cls, name, bases, dct):
         # Normalization
-        fields = {key: value for key, value in dct.items()
-                  if isinstance(value, Field)}
+        fields = dict((key, value) for key, value in dct.items()
+                      if isinstance(value, Field))
         dct['_fields'] = fields
         dct['_normalize'] = normalizer(fields)
 
@@ -330,7 +338,9 @@ class ConfigMeta(type):
         return type.__new__(cls, name, bases, dct)
 
 
+@six.add_metaclass(ConfigMeta)
 class Config(object):
+
     """
     Base class for configuration objects.  See :class:`Field` and
     :class:`ListField` for usage.
@@ -339,7 +349,6 @@ class Config(object):
     you would a `dict`.  Similar to a `dict`, you can either use keyword
     arguments or pass in an actual `dict` object.
     """
-    __metaclass__ = ConfigMeta
 
     def __init__(self, properties=None, **kwArgs):
         if properties is None:
@@ -372,6 +381,6 @@ class Config(object):
     def describe(cls):
         names = sorted(name for name, field in cls._fields.items()
                        if not field.hidden)
-        desc = ['{} {}'.format(name, cls._fields[name].describe())
+        desc = ['{0} {1}'.format(name, cls._fields[name].describe())
                 for name in names]
         return '\n'.join(desc)

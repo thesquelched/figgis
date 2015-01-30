@@ -1,0 +1,20 @@
+language: python
+
+env:
+  - TOXENV=py26
+  - TOXENV=py27
+  - TOXENV=py32
+  - TOXENV=py33
+  - TOXENV=py34
+
+install:
+  - pip install tox
+  - pip install .
+  - pip install -r tools/pip-requires.txt
+  - pip install -r tools/test-requires.txt
+
+python:
+  - "2.7"
+
+script:
+  - tox

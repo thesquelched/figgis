@@ -2,9 +2,12 @@ import os.path
 from setuptools import setup
 
 
+CHANGELOG = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                         'CHANGELOG.md')
+
 if __name__ == '__main__':
     try:
-        with open(os.path.join(os.path.dirname(__file__), 'CHANGELOG.md')) as f:
+        with open(CHANGELOG) as f:
             CHANGELOG = f.read().strip()
     except IOError:
         CHANGELOG = ''
