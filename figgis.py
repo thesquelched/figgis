@@ -64,6 +64,20 @@ class Field(object):
     >>> print '{0}, age {1}, lives at {2}'.format(
     ...     joe.name, joe.age, joe.address)
     Joe, age 45, lives at 123 Easy St.
+
+    Sometimes, you may need to consume data for which some keys can not be
+    expressed as a python identifier, e.g. `@attr`.  In this case, you may use
+    the `__translate__` attribute to provide a mapping from the data to your
+    fields:
+
+    >>> class Translated(Config):
+    ...     __translate__ = {
+    ...         '@crazy_key@': 'crazy_key',
+    ...     }
+    ...
+    ...     crazy_key = Field(required=True)
+    >>> Translated({'@crazy_key@': 'value'}).crazy_key
+    'value'
     """
 
     def __init__(self,
@@ -376,12 +390,19 @@ class Config(object):
     ...     name = Field()
     """
 
+    __translate__ = None
+
     def __init__(self, properties=None, **kwArgs):
         if properties is None:
             properties = {}
 
         combined = properties.copy()
         combined.update(kwArgs)
+
+        if self.__translate__:
+            for key, translation in self.__translate__.items():
+                if key in combined:
+                    combined[translation] = combined.pop(key)
 
         self._properties = self._normalize(combined)
 

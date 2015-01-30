@@ -281,3 +281,16 @@ def test_inheritance_mro():
 
     assert tc.field1 == 'parent1'
     assert tc.field2 == 'testconfig'
+
+
+def test_translation():
+    class TestConfig(Config):
+
+        __translate__ = {
+            '@foo': 'foo',
+        }
+
+        foo = Field(int, required=True)
+
+    tc = TestConfig({'@foo': 111})
+    assert tc.foo == 111
