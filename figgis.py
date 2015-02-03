@@ -6,12 +6,23 @@ from inspect import isclass, isfunction
 import six
 
 
-if six.PY3:
+if six.PY3:  # pragma: no cover
     long = int
 
 
 TRUTHY = frozenset((long(1), 1, 'true', 'True', 'yes', '1', True))
 FALSEY = frozenset((long(0), 0, 'false', 'False', 'no', '0', False))
+
+
+class _NotSpecified(object):
+
+    def __repr__(self):  # pragma: no cover
+        return 'None'
+
+    __str__ = __repr__
+
+
+NotSpecified = _NotSpecified()
 
 
 def indent(value, size=2):
@@ -78,7 +89,7 @@ class Field(object):
     def __init__(self,
                  type=None,
                  required=False,
-                 default=None,
+                 default=NotSpecified,
                  validator=None,
                  choices=None,
                  help=None,
@@ -155,7 +166,7 @@ class Field(object):
         props = ['type={0}'.format(self.pretty_type)]
         if self.required:
             props.append('required')
-        if self.default is not None:
+        if self.default is not NotSpecified:
             props.append('default={0}'.format(self.default))
         if self.choices:
             choices = sorted(self.choices)
@@ -184,8 +195,8 @@ class Field(object):
 
         return desc
 
-    def validate(self, normalized, prefixed):
-        if not self.validators:
+    def validate(self, normalized, prefixed, exists):
+        if not (exists and self.validators):
             return
 
         for validator in self.validators:
@@ -218,7 +229,7 @@ class Field(object):
         if value is None:
             # Null values are only invalid if the field is required or if the
             # default isn't None
-            return self.required or self.default is not None
+            return self.required or self.default is not NotSpecified
         elif isclass(self.type) and issubclass(self.type, Config):
             return not isinstance(value, (self.type, dict))
         elif isfunction(self.type):
@@ -239,11 +250,16 @@ class Field(object):
         if config_key not in config:
             if self.required:
                 raise PropertyError('Missing property: {0}'.format(prefixed))
-            config[name] = self.default
+
+            exists = self.default is not NotSpecified
+            default = None if self.default is NotSpecified else self.default
+            config[config_key] = default
+        else:
+            exists = True
 
         conf_value = config[config_key]
         normalized = self.normalize_field(conf_value, name, prefixed)
-        self.validate(normalized, prefixed)
+        self.validate(normalized, prefixed, exists)
 
         config[name] = normalized
 
@@ -299,7 +315,7 @@ class ListField(Field):
 
     def is_list(self, field_value):
         if field_value is None:
-            return not self.required and self.default is None
+            return not self.required and self.default is NotSpecified
         else:
             return isinstance(field_value, list)
 

@@ -29,6 +29,13 @@ def test_simple_config():
     pytest.raises(PropertyError, SimpleConfig)
 
 
+def test_function():
+    class FuncConfig(Config):
+        value = Field(lambda value: int(value) + 1)
+
+    assert FuncConfig(value=1).value == 2
+
+
 def test_simple_list():
     class ListConfig(Config):
         list_ = ListField(int, default=[1, 2, 3])
@@ -98,10 +105,10 @@ def test_validate():
     def raises_validation_error(value):
         raise ValidationError('Wrong')
 
-    class FailureConfig(Config):
-        fails = Field(validator=raises_validation_error)
+    class OptionalConfig(Config):
+        optional = Field(validator=raises_validation_error)
 
-    pytest.raises(ValidationError, FailureConfig)
+    assert OptionalConfig().optional is None
 
 
 def test_string_coerce():
@@ -209,13 +216,13 @@ def test_choices():
     class ChoiceConfig(Config):
         value = Field(int, choices=[1, 2, 3])
 
-    pytest.raises(ValidationError, ChoiceConfig)
     pytest.raises(ValidationError, ChoiceConfig, value=0)
     pytest.raises(ValidationError, ChoiceConfig, value='a')
 
-    assert ChoiceConfig(value=1) is not None
-    assert ChoiceConfig(value=2) is not None
-    assert ChoiceConfig(value=3) is not None
+    assert ChoiceConfig().value is None
+    assert ChoiceConfig(value=1).value == 1
+    assert ChoiceConfig(value=2).value == 2
+    assert ChoiceConfig(value=3).value == 3
 
 
 def test_list_choices():
@@ -314,3 +321,16 @@ def test_translation_nested():
 
     child = TestConf({'conf1': {'@attr': 111}})
     assert child.conf1.attributes == 111
+
+
+def test_config_extras():
+    class Conf(Config):
+        value = Field(int)
+
+    conf = Conf(value=1)
+    assert conf.copy().value == 1
+    assert conf.get('value') == 1
+
+    conf.update(value=2)
+    assert conf.copy().value == 2
+    assert conf.get('value') == 2
