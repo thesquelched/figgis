@@ -1,9 +1,21 @@
 import os.path
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 CHANGELOG = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                          'CHANGELOG.md')
+
+
+def read_version():
+    path = os.path.join(
+        os.path.abspath(os.path.dirname(__file__)),
+        'figgis',
+        '_version.py'
+    )
+    with open(path) as f:
+        exec(f.read())
+        return locals()['__version__']
+
 
 if __name__ == '__main__':
     try:
@@ -14,7 +26,7 @@ if __name__ == '__main__':
 
     setup(
         name='figgis',
-        version='1.4.0',
+        version=read_version(),
 
         description="Python declarative data validation",
         long_description=CHANGELOG,
@@ -23,5 +35,5 @@ if __name__ == '__main__':
         author_email='scott@chojin.org',
         url='http://github.com/thesquelched/figgis',
 
-        py_modules=['figgis'],
+        packages=find_packages(exclude=['tests']),
     )

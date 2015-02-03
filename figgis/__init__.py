@@ -1,9 +1,11 @@
-__version__ = '1.4.0'
-__all__ = ['Field', 'ListField', 'Config', 'ValidationError', 'PropertyError']
-
-
+import figgis._version as version
 from inspect import isclass, isfunction
 import six
+
+__version_info__ = version.__version_info__
+__version__ = version.__version__
+
+__all__ = ['Field', 'ListField', 'Config', 'ValidationError', 'PropertyError']
 
 
 if six.PY3:  # pragma: no cover
