@@ -33,6 +33,15 @@ def indent(value, size=2):
     return '\n'.join(' ' * size + line for line in lines)
 
 
+class NormalizedDict(dict):
+    """Indicate that the data has already been normalized"""
+    pass
+
+
+######################################################################
+# Errors
+######################################################################
+
 class ValidationError(Exception):
     pass
 
@@ -40,6 +49,10 @@ class ValidationError(Exception):
 class PropertyError(KeyError):
     pass
 
+
+######################################################################
+# Configuration
+######################################################################
 
 class Field(object):
 
@@ -254,16 +267,15 @@ class Field(object):
                 raise PropertyError('Missing property: {0}'.format(prefixed))
 
             exists = self.default is not NotSpecified
-            default = None if self.default is NotSpecified else self.default
-            config[config_key] = default
+            conf_value = None if self.default is NotSpecified else self.default
         else:
             exists = True
+            conf_value = config[config_key]
 
-        conf_value = config[config_key]
         normalized = self.normalize_field(conf_value, name, prefixed)
         self.validate(normalized, prefixed, exists)
 
-        config[name] = normalized
+        return name, normalized
 
     def normalize_field(self, field_value, name, prefixed):
         if self.invalid_type(field_value, prefixed):
@@ -274,10 +286,12 @@ class Field(object):
             return None
 
         if isclass(self.type) and issubclass(self.type, Config):
-            for fname, field in self.type._fields.items():
+            normalized = NormalizedDict(
                 field.normalize(field_value, fname, prefix=prefixed)
-
-        return self.coerce(field_value)
+                for fname, field in self.type._fields.items())
+            return self.coerce(normalized)
+        else:
+            return self.coerce(field_value)
 
 
 class ListField(Field):
@@ -340,11 +354,9 @@ class ListField(Field):
 
 def normalizer(fields):
     def normalize(self, config, fields=fields, prefix=None):
-        copied = config.copy()
-        for name, field in fields.items():
-            field.normalize(copied, name, prefix)
-
-        return copied
+        return NormalizedDict(
+            field.normalize(config, name, prefix=prefix)
+            for name, field in fields.items())
 
     return normalize
 
@@ -410,14 +422,23 @@ class Config(object):
     ...     name = Field()
     """
 
-    def __init__(self, properties=None, **kwArgs):
-        if properties is None:
-            properties = {}
+    def __init__(self, *args, **kwArgs):
+        if len(args) > 1:
+            raise TypeError(
+                'Expected one or fewer arguments, but received {0}'.format(
+                    len(args)))
 
-        combined = properties.copy()
-        combined.update(kwArgs)
+        properties = args[0] if args else {}
+        if isinstance(properties, NormalizedDict):
+            # No need to normalize, since we're already normalized
+            # (ignore kwArgs, though)
+            normalized = properties
+        else:
+            combined = properties.copy()
+            combined.update(kwArgs)
+            normalized = self._normalize(combined)
 
-        self._properties = self._normalize(combined)
+        self._properties = normalized
 
     def __getitem__(self, key):
         return self._properties[key]
