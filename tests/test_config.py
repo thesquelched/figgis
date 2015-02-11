@@ -1,5 +1,6 @@
 from figgis import Config, Field, ListField, ValidationError, PropertyError
 
+from copy import deepcopy
 import pytest
 import six
 
@@ -334,3 +335,33 @@ def test_config_extras():
     conf.update(value=2)
     assert conf.copy().value == 2
     assert conf.get('value') == 2
+
+
+def test_nested_validate_missing():
+    def raises_validation_error(value):
+        raise ValidationError('Wrong')
+
+    class Child(Config):
+        field = Field(int, validator=raises_validation_error)
+
+    class Parent(Config):
+        child = Field(Child, required=True)
+
+    Child({})
+    Parent({'child': {}})
+
+
+def test_original_not_modified():
+    data = {
+        'foo': 1,
+        'bar': 'two'
+    }
+    original = deepcopy(data)
+
+    class Conf(Config):
+        foo = Field()
+        baz = Field(key='bar')
+
+    Conf(data)
+
+    assert data == original
