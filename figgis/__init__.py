@@ -1,3 +1,7 @@
+# Copyright 2015 Yahoo! Inc.
+# Copyrights licensed under the BSD License. See the accompanying LICENSE
+# file for terms.
+
 import figgis._version as version
 from inspect import isclass, isfunction
 import six

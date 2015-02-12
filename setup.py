@@ -1,3 +1,7 @@
+# Copyright 2015 Yahoo! Inc.
+# Copyrights licensed under the BSD License. See the accompanying LICENSE
+# file for terms.
+
 import os.path
 from setuptools import setup, find_packages
 
