@@ -47,10 +47,12 @@ class NormalizedDict(dict):
 ######################################################################
 
 class ValidationError(Exception):
+    """Thrown when a field's data is invalid"""
     pass
 
 
 class PropertyError(KeyError):
+    """Thrown when a required property is missing"""
     pass
 
 
@@ -91,8 +93,8 @@ class Field(object):
     ...         street='Easy',
     ...     )
     ... )
-    >>> print '{0}, age {1}, lives at {2}'.format(
-    ...     joe.name, joe.age, joe.address)
+    >>> print('{0}, age {1}, lives at {2}'.format(
+    ...     joe.name, joe.age, joe.address))
     Joe, age 45, lives at 123 Easy St.
 
     Sometimes, you may need to consume data for which some keys can not be
@@ -114,6 +116,24 @@ class Field(object):
                  help=None,
                  hidden=False,
                  key=None):
+        """
+        :param type: Either a built-in data type, another :class:`Config`
+                     object, or a function that takes the raw field value and
+                     produces the desired result
+        :param required: If `True`, throw an exception if the data does not
+                         exist
+        :param default: Default value to use if the data does not exist
+        :param choices: List of values that constrain the possible data values
+        :param key: The key in the data that should be read to produce this
+                    field (defaults to the variable name to which this field is
+                    assigned)
+        :param validator: Either function or a list of functions,
+                          taking the parsed field data, that either returns
+                          `False` or throws :class:`ValidationError` if the
+                          data is invalid, or returns `True` otherwise
+        :param hidden: Hide this field from the output of
+                       :meth:`Config.describe`
+        """
         if type is None:
             type = str
 
@@ -316,7 +336,7 @@ class ListField(Field):
     ...     ]
     ... )
     >>> for product in catalog.products:
-    ...     print '{0} costs {1}'.format(product.name, product.price)
+    ...     print('{0} costs {1}'.format(product.name, product.price))
     Orange costs 0.79
     Apple costs 0.59
     """
@@ -419,7 +439,7 @@ class Config(object):
     the `__inherits__` attribute:
 
     >>> class Parent(Config):
-   ...      id = Field(int, required=True)
+    ...     id = Field(int, required=True)
     >>> class Child(Config):
     ...     __inherits__ = [Parent]
     ...
@@ -464,6 +484,9 @@ class Config(object):
 
     @classmethod
     def describe(cls):
+        """
+        Return a pretty-formatted string that describes the format of the data
+        """
         names = sorted(name for name, field in cls._fields.items()
                        if not field.hidden)
         desc = ['{0} {1}'.format(name, cls._fields[name].describe())
