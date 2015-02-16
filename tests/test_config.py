@@ -369,3 +369,26 @@ def test_original_not_modified():
     Conf(data)
 
     assert data == original
+
+
+def test_reserved():
+    def create_bad_config1():
+        class BadConfig(Config):
+            get = Field()
+
+    def create_bad_config2():
+        class BadConfig(Config):
+            describe = Field()
+
+    def create_bad_config3():
+        class BadConfig(Config):
+            copy = Field()
+
+    def create_bad_config4():
+        class BadConfig(Config):
+            update = Field()
+
+    pytest.raises(TypeError, create_bad_config1)
+    pytest.raises(TypeError, create_bad_config2)
+    pytest.raises(TypeError, create_bad_config3)
+    pytest.raises(TypeError, create_bad_config4)

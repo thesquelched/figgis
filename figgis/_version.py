@@ -2,5 +2,5 @@
 # Copyrights licensed under the BSD License. See the accompanying LICENSE
 # file for terms.
 
-__version_info__ = (1, 4, 2)
+__version_info__ = (1, 4, 3)
 __version__ = '.'.join(map(str, __version_info__))

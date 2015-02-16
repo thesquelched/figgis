@@ -16,8 +16,12 @@ if six.PY3:  # pragma: no cover
     long = int
 
 
-TRUTHY = frozenset((long(1), 1, 'true', 'True', 'yes', '1', True))
-FALSEY = frozenset((long(0), 0, 'false', 'False', 'no', '0', False))
+_TRUTHY = frozenset((long(1), 1, 'true', 'True', 'yes', '1', True))
+_FALSEY = frozenset((long(0), 0, 'false', 'False', 'no', '0', False))
+
+
+# Reserved field names
+_RESERVED = frozenset(['get', 'update', 'describe', 'copy'])
 
 
 class _NotSpecified(object):
@@ -46,12 +50,21 @@ class NormalizedDict(dict):
 # Errors
 ######################################################################
 
-class ValidationError(Exception):
+class FiggisError(Exception):
+    """Base class for figgis exceptions"""
+    pass
+
+
+class ReservedFieldError(TypeError, FiggisError):
+    """Thrown when a config attempts to overwrite a reserved field"""
+
+
+class ValidationError(FiggisError):
     """Thrown when a field's data is invalid"""
     pass
 
 
-class PropertyError(KeyError):
+class PropertyError(KeyError, FiggisError):
     """Thrown when a required property is missing"""
     pass
 
@@ -248,9 +261,9 @@ class Field(object):
                     prefixed, ex))
 
     def coerce_bool(self, value):
-        if value in TRUTHY:
+        if value in _TRUTHY:
             return True
-        elif value in FALSEY:
+        elif value in _FALSEY:
             return False
         else:
             raise ValueError
@@ -412,6 +425,15 @@ class ConfigMeta(type):
 
         fields.update((key, value) for key, value in dct.items()
                       if not key.startswith('__') and isinstance(value, Field))
+
+        forbidden = _RESERVED.intersection(frozenset(fields.keys()))
+        if forbidden:
+            raise ReservedFieldError((
+                'Config {0} overwrites reserved field{1} {2}; use key option '
+                'to rename field{1}'
+            ).format(name,
+                     's' if len(forbidden) > 1 else '',
+                     ', '.join(forbidden)))
 
         dct['_fields'] = fields
         dct['_normalize'] = normalizer(fields)
