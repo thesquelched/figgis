@@ -37,7 +37,21 @@ if __name__ == '__main__':
 
         author='Scott Kruger',
         author_email='scott@chojin.org',
-        url='http://github.com/thesquelched/figgis',
+        url='https://github.com/thesquelched/figgis',
+        download_url='https://github.com/thesquelched/figgis/tarball/1.4.3',
 
         packages=find_packages(exclude=['tests']),
+
+        classifiers=[
+            'Development Status :: 5 - Production/Stable',
+            'Intended Audience :: Developers',
+            'License :: OSI Approved :: Apache Software License',
+            'Operating System :: OS Independent',
+            'Programming Language :: Python :: 2.6',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3.2',
+            'Programming Language :: Python :: 3.3',
+            'Programming Language :: Python :: 3.4',
+            'Topic :: Software Development :: Libraries',
+        ]
     )
