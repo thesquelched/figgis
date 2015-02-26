@@ -6,8 +6,9 @@ import os.path
 from setuptools import setup, find_packages
 
 
-CHANGELOG = os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                         'CHANGELOG.md')
+CHANGELOG_PATH = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)),
+    'CHANGELOG.md')
 
 
 def read_version():
@@ -21,19 +22,34 @@ def read_version():
         return locals()['__version__']
 
 
+def long_description(changelog):
+    return """\
+[Package Documentation](http://figgis.readthedocs.org/en/latest)
+
+Changelog
+---------
+
+{changelog}
+""".format(changelog=changelog)
+
+
 if __name__ == '__main__':
     try:
-        with open(CHANGELOG) as f:
-            CHANGELOG = f.read().strip()
+        with open(CHANGELOG_PATH) as f:
+            changelog = f.read().strip()
     except IOError:
-        CHANGELOG = ''
+        changelog = ''
 
     setup(
         name='figgis',
         version=read_version(),
 
+        install_requires=[
+            'six',
+        ],
+
         description="Python declarative data validation",
-        long_description=CHANGELOG,
+        long_description=long_description(changelog),
 
         author='Scott Kruger',
         author_email='scott@chojin.org',
