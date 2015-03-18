@@ -12,6 +12,7 @@ def test_flat():
         required = Field(int, required=True, help='required')
         choices = Field(int, choices=[1, 2, 3], help='choices')
         list_ = ListField(help='list_')
+        not_nullable = Field(nullable=False)
 
     desc = TestConfig.describe()
     assert desc == """\
@@ -19,6 +20,7 @@ choices (type=int, choices=[1, 2, 3]) - choices
 default (type=int, default=0) - default
 list_ (type=list(str)) - list_
 nodesc (type=str)
+not_nullable (type=str, non-nullable)
 required (type=int, required) - required"""
 
 

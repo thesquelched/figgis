@@ -128,7 +128,8 @@ class Field(object):
                  choices=None,
                  help=None,
                  hidden=False,
-                 key=None):
+                 key=None,
+                 nullable=True):
         """
         :param type: Either a built-in data type, another :class:`Config`
                      object, or a function that takes the raw field value and
@@ -136,6 +137,7 @@ class Field(object):
         :param required: If `True`, throw an exception if the data does not
                          exist
         :param default: Default value to use if the data does not exist
+        :param nullable: If `True`, then allow the field value to be null
         :param choices: List of values that constrain the possible data values
         :param key: The key in the data that should be read to produce this
                     field (defaults to the variable name to which this field is
@@ -154,12 +156,13 @@ class Field(object):
             validator = [] if validator is None else [validator]
 
         self._type = type
-        self._required = required
+        self._required = bool(required)
         self._default = default
         self._choices = set(choices) if choices else None
         self._help = help
-        self._hidden = hidden
+        self._hidden = bool(hidden)
         self._key = key
+        self._nullable = bool(nullable)
 
         # Has to be done after all other options are set so that
         # base_validators can correctly create validators from field options
@@ -195,6 +198,10 @@ class Field(object):
         return self._required
 
     @property
+    def nullable(self):
+        return self._nullable
+
+    @property
     def default(self):
         return self._default
 
@@ -220,6 +227,8 @@ class Field(object):
             props.append('required')
         if self.default is not NotSpecified:
             props.append('default={0}'.format(self.default))
+        if not self.nullable:
+            props.append('non-nullable')
         if self.choices:
             choices = sorted(self.choices)
             choicestr = ', '.join(repr(item) for item in choices)
@@ -279,9 +288,7 @@ class Field(object):
 
     def invalid_type(self, value, prefixed):
         if value is None:
-            # Null values are only invalid if the field is required or if the
-            # default isn't None
-            return self.required or self.default is not NotSpecified
+            return not self.nullable
         elif isclass(self.type) and issubclass(self.type, Config):
             return not isinstance(value, (self.type, dict))
         elif isfunction(self.type):

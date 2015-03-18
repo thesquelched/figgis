@@ -392,3 +392,32 @@ def test_reserved():
     pytest.raises(TypeError, create_bad_config2)
     pytest.raises(TypeError, create_bad_config3)
     pytest.raises(TypeError, create_bad_config4)
+
+
+def test_nullable():
+    class TestConfig(Config):
+        nullable = Field(nullable=True, required=True)
+        not_nullable = Field(nullable=False, required=True)
+        default = Field(required=True)
+
+    pytest.raises(ValidationError, TestConfig,
+                  nullable=None, not_nullable=None, default=None)
+
+    assert TestConfig(nullable=None, not_nullable='value', default=None)
+    assert TestConfig(nullable='value', not_nullable='value', default='value')
+
+
+def test_nullable_required():
+    class TestConfig(Config):
+        field = Field(nullable=True, required=True)
+
+    pytest.raises(PropertyError, TestConfig)
+
+
+def test_nullable_default():
+    class TestConfig(Config):
+        default = Field(nullable=False, default=None)
+
+    pytest.raises(ValidationError, TestConfig)
+
+    assert TestConfig(default='foo')
