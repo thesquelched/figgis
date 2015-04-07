@@ -511,6 +511,20 @@ class Config(object):
     def get(self, key, default=None):
         return self._properties.get(key, default)
 
+    def to_dict(self):
+        """Convert the config to a plain python dictionary"""
+        converted = {}
+        for key, value in self._properties.items():
+            if isinstance(value, Config):
+                converted[key] = value.to_dict()
+            elif (isinstance(value, (list, tuple)) and
+                    any(isinstance(item, Config) for item in value)):
+                converted[key] = [item.to_dict() for item in value]
+            else:
+                converted[key] = value
+
+        return converted
+
     @classmethod
     def describe(cls):
         """
