@@ -421,3 +421,27 @@ def test_nullable_default():
     pytest.raises(ValidationError, TestConfig)
 
     assert TestConfig(default='foo')
+
+
+def test_allow_extra():
+    class TestConfig(Config):
+        __allow_extra__ = False
+
+        foo = Field(int)
+
+    assert TestConfig(foo=1).foo == 1
+    pytest.raises(PropertyError, TestConfig, bar=1)
+
+
+def test_allow_extra_subconfig():
+    class Subconfig(Config):
+        __allow_extra__ = False
+
+        foo = Field(int)
+
+    class TestConfig(Config):
+        __allow_extra__ = True
+
+        sub = Field(Subconfig)
+
+    pytest.raises(PropertyError, TestConfig, sub=dict(bar=1))

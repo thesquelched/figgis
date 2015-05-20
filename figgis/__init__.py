@@ -330,9 +330,7 @@ class Field(object):
             return None
 
         if isclass(self.type) and issubclass(self.type, Config):
-            normalized = NormalizedDict(
-                field.normalize(field_value, fname, prefix=prefixed)
-                for fname, field in self.type._fields.items())
+            normalized = self.type._normalize(field_value, prefix=prefixed)
             return self.coerce(normalized)
         else:
             return self.coerce(field_value)
@@ -396,11 +394,22 @@ class ListField(Field):
         return values
 
 
-def normalizer(fields):
-    def normalize(self, config, fields=fields, prefix=None):
+def normalizer(allow_extra=None):
+    if allow_extra is None:
+        allow_extra = True
+
+    @classmethod
+    def normalize(cls, config, prefix=None,
+                  allow_extra=allow_extra):
+        extra = frozenset(config) - frozenset(cls._fields)
+        if extra and not allow_extra:
+            raise PropertyError('Encountered unexpected key: {0}{1}'.format(
+                prefix + '.' if prefix else '',
+                six.next(iter(extra))))
+
         return NormalizedDict(
             field.normalize(config, name, prefix=prefix)
-            for name, field in fields.items())
+            for name, field in cls._fields.items())
 
     return normalize
 
@@ -443,7 +452,8 @@ class ConfigMeta(type):
                      ', '.join(forbidden)))
 
         dct['_fields'] = fields
-        dct['_normalize'] = normalizer(fields)
+        dct['_normalize'] = normalizer(
+            allow_extra=dct.pop('__allow_extra__', None))
 
         # Automatic properties
         for key, field in fields.items():
@@ -475,7 +485,7 @@ class Config(object):
     ...     name = Field()
     """
 
-    def __init__(self, *args, **kwArgs):
+    def __init__(self, *args, **kwargs):
         if len(args) > 1:
             raise TypeError(
                 'Expected one or fewer arguments, but received {0}'.format(
@@ -484,11 +494,11 @@ class Config(object):
         properties = args[0] if args else {}
         if isinstance(properties, NormalizedDict):
             # No need to normalize, since we're already normalized
-            # (ignore kwArgs, though)
+            # (ignore kwargs, though)
             normalized = properties
         else:
             combined = properties.copy()
-            combined.update(kwArgs)
+            combined.update(kwargs)
             normalized = self._normalize(combined)
 
         self._properties = normalized
@@ -505,8 +515,8 @@ class Config(object):
     def copy(self):
         return self.__class__(self._properties.copy())
 
-    def update(self, *args, **kwArgs):
-        self._properties.update(*args, **kwArgs)
+    def update(self, *args, **kwargs):
+        self._properties.update(*args, **kwargs)
 
     def get(self, key, default=None):
         return self._properties.get(key, default)
