@@ -22,6 +22,11 @@ def read_version():
         return locals()['__version__']
 
 
+def download_url():
+    return 'https://github.com/thesquelched/figgis/tarball/{0}'.format(
+        read_version())
+
+
 def long_description(changelog):
     return """\
 [Package Documentation](http://figgis.readthedocs.org/en/latest)
@@ -54,7 +59,7 @@ if __name__ == '__main__':
         author='Scott Kruger',
         author_email='scott@chojin.org',
         url='https://github.com/thesquelched/figgis',
-        download_url='https://github.com/thesquelched/figgis/tarball/1.4.3',
+        download_url=download_url(),
 
         packages=find_packages(exclude=['tests']),
 
