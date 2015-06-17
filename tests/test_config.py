@@ -445,3 +445,11 @@ def test_allow_extra_subconfig():
         sub = Field(Subconfig)
 
     pytest.raises(PropertyError, TestConfig, sub=dict(bar=1))
+
+
+def test_property_docstring():
+    class Conf(Config):
+        nohelp = Field()
+        help = Field(help='myhelp')
+
+    assert Conf.help.__doc__ == 'myhelp'

@@ -414,12 +414,13 @@ def normalizer(allow_extra=None):
     return normalize
 
 
-def autoproperty(key):
+def autoproperty(key, docstring=None):
     """
     Create a property for the given key that retrieves the corresponding value
     from self._properties
     """
-    return property(lambda self: self._properties.get(key))
+    return property(lambda self: self._properties.get(key),
+                    None, None, docstring)
 
 
 class ConfigMeta(type):
@@ -457,7 +458,7 @@ class ConfigMeta(type):
 
         # Automatic properties
         for key, field in fields.items():
-            dct[key] = autoproperty(key)
+            dct[key] = autoproperty(key, field.help)
 
         return type.__new__(cls, name, bases, dct)
 
