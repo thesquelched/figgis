@@ -253,7 +253,8 @@ def test_coerce():
         value = Field(SubConfig)
 
     tc = TestConfig()
-    tc._fields['value'].coerce(SubConfig(value=1))
+    vfield = tc._fields['value']
+    vfield.coerce(SubConfig(value=1), vfield.type)
 
 
 def test_inheritance():
@@ -453,3 +454,21 @@ def test_property_docstring():
         help = Field(help='myhelp')
 
     assert Conf.help.__doc__ == 'myhelp'
+
+
+def test_multiple_types():
+    class Conf(Config):
+        double = Field(int, lambda x: x * 2)
+
+    assert Conf(double=1).double == 2
+
+
+def test_multiple_types_conf():
+    class SubConf(Config):
+        foo = Field(required=True)
+
+    class Conf(Config):
+        value = Field(lambda x: dict(list(x.items()) + [('foo', 'bar')]),
+                      SubConf)
+
+    assert Conf(value={}).value['foo'] == 'bar'
