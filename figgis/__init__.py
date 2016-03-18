@@ -121,19 +121,17 @@ class Field(object):
     """
 
     def __init__(self,
-                 type=None,
-                 required=False,
-                 default=NotSpecified,
-                 validator=None,
-                 choices=None,
-                 help=None,
-                 hidden=False,
-                 key=None,
-                 nullable=True):
+                 *types,
+                 **kwargs):
         """
+        Field(*types, type=None, required=False, default=NotSpecified, \
+validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
+
+        :param types: One or more types or functions to apply, in order, to
+                      the field value.
         :param type: Either a built-in data type, another :class:`Config`
                      object, or a function that takes the raw field value and
-                     produces the desired result
+                     produces the desired result. May not be used with `types`
         :param required: If `True`, throw an exception if the data does not
                          exist
         :param default: Default value to use if the data does not exist
@@ -149,13 +147,28 @@ class Field(object):
         :param hidden: Hide this field from the output of
                        :meth:`Config.describe`
         """
-        if type is None:
-            type = str
+        type_ = kwargs.get('type', None)
+        required = kwargs.get('required', False)
+        default = kwargs.get('default', NotSpecified)
+        validator = kwargs.get('validator', None)
+        choices = kwargs.get('choices', None)
+        help = kwargs.get('help', None)
+        hidden = kwargs.get('hidden', False)
+        key = kwargs.get('key', None)
+        nullable = kwargs.get('nullable', True)
+
+        if types and type_:
+            raise ValueError("Keyword argument 'type' is not allowed with "
+                             "one or more positional arguments")
+        elif type_:
+            types += type_
+        elif not types:
+            types = (six.text_type,)
 
         if not isinstance(validator, (tuple, list)):
             validator = [] if validator is None else [validator]
 
-        self._type = type
+        self._types = types
         self._required = bool(required)
         self._default = default
         self._choices = set(choices) if choices else None
@@ -183,15 +196,22 @@ class Field(object):
         return True
 
     @property
+    def types(self):
+        return self._types
+
+    @property
     def type(self):
-        return self._type
+        if len(self._types) != 1:
+            raise SystemExit('Field only has one type')
+
+        return self._types[0]
 
     @property
     def pretty_type(self):
         try:
-            return self._type.__name__
+            return self.type.__name__
         except AttributeError:
-            return str(self._type)
+            return six.text_type(self.type)
 
     @property
     def required(self):
@@ -277,27 +297,27 @@ class Field(object):
         else:
             raise ValueError
 
-    def coerce(self, value):
-        type_or_class = (isclass(self.type) or isinstance(self.type, type))
-        if type_or_class and isinstance(value, self.type):
+    def coerce(self, value, type_):
+        type_or_class = (isclass(type_) or isinstance(type_, type))
+        if type_or_class and isinstance(value, type_):
             return value
-        elif self.type is bool:
+        elif type_ is bool:
             return self.coerce_bool(value)
         else:
-            return self.type(value)
+            return type_(value)
 
-    def invalid_type(self, value, prefixed):
+    def invalid_type(self, type_, value, prefixed):
         if value is None:
             return not self.nullable
-        elif isclass(self.type) and issubclass(self.type, Config):
-            return not isinstance(value, (self.type, dict))
-        elif isfunction(self.type):
+        elif isclass(type_) and issubclass(type_, Config):
+            return not isinstance(value, (type_, dict))
+        elif isfunction(type_):
             # Assume data parsed by custom functions is valid
             return False
         else:
             try:
                 # Attempt to coerce value
-                self.coerce(value)
+                self.coerce(value, type_)
                 return False
             except (TypeError, ValueError):
                 return True
@@ -316,24 +336,28 @@ class Field(object):
             exists = True
             conf_value = config[config_key]
 
-        normalized = self.normalize_field(conf_value, name, prefixed)
+        normalized = conf_value
+        for type_ in self.types:
+            normalized = self.normalize_field(type_, normalized, name,
+                                              prefixed)
+
         self.validate(normalized, prefixed, exists)
 
         return name, normalized
 
-    def normalize_field(self, field_value, name, prefixed):
-        if self.invalid_type(field_value, prefixed):
+    def normalize_field(self, type_, field_value, name, prefixed):
+        if self.invalid_type(type_, field_value, prefixed):
             raise ValidationError('Property {0} is not of type {1}'.format(
-                prefixed, self.type.__name__))
+                prefixed, type_.__name__))
 
         if field_value is None:
             return None
 
-        if isclass(self.type) and issubclass(self.type, Config):
-            normalized = self.type._normalize(field_value, prefix=prefixed)
-            return self.coerce(normalized)
+        if isclass(type_) and issubclass(type_, Config):
+            normalized = type_._normalize(field_value, prefix=prefixed)
+            return self.coerce(normalized, type_)
         else:
-            return self.coerce(field_value)
+            return self.coerce(field_value, type_)
 
 
 class ListField(Field):
@@ -377,7 +401,7 @@ class ListField(Field):
         else:
             return isinstance(field_value, list)
 
-    def normalize_field(self, field_value, name, prefixed):
+    def normalize_field(self, type_, field_value, name, prefixed):
         if not self.is_list(field_value):
             raise ValidationError('Field {0} is not a list'.format(prefixed))
 
@@ -388,7 +412,7 @@ class ListField(Field):
         for i, value in enumerate(field_value):
             prefix = '{0}.{1}'.format(prefixed, i)
             normalized = super(ListField, self).normalize_field(
-                value, name, prefix)
+                type_, value, name, prefix)
             values.append(normalized)
 
         return values

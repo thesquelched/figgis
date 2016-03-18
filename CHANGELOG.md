@@ -1,3 +1,8 @@
+Version 1.7.0 (2016-03-18)
+--------------------------
+* Allow multiple types for a field, which are applied in-order
+* Fixed default field type to be `unicode` in python 2
+
 Version 1.6.1 (2015-05-20)
 --------------------------
 * Add '__allow_extra__' attribute to Configs to disallow extra values being
