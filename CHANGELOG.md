@@ -1,7 +1,9 @@
-Version 1.8.0 (2016-11-15)
+Version 1.8.1 (2016-11-15)
 --------------------------
 * Add the `read_only` argument to fields
 * Removed getattr/setattr functionality for fields
+* Add `parent` property to parsed configs, which allows child configs to access
+  their parent
 
 Version 1.7.0 (2016-03-18)
 --------------------------

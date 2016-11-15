@@ -69,6 +69,7 @@ def test_sub_config():
         list_ = ListField(SubConfig, default=[])
 
     c = MainConfig()
+    assert c.dict_.parent is c
     assert c.dict_.name == 'none'
     assert c.dict_.value == 0
     assert c.dict_.sub is None
@@ -81,8 +82,13 @@ def test_sub_config():
     assert c.dict_.name == 'foo'
     assert c.dict_.value == 0
     assert c.dict_.sub.value == 5
+
+    assert len(c.list_) == 2
+    assert c.list_[0].parent is c
     assert c.list_[0].name == 'one'
     assert c.list_[0].value == 0
+
+    assert c.list_[1].parent is c
     assert c.list_[1].name == 'two'
     assert c.list_[1].value == 2
 
@@ -522,3 +528,24 @@ def test_invalid_config_args():
         value = Field()
 
     pytest.raises(TypeError, Conf, 'foo', 'bar')
+
+
+def test_subconfig_parent():
+    class Child(Config):
+        value = Field(int)
+
+        @property
+        def parent_value(self):
+            return self.parent.value
+
+    class Parent(Config):
+        value = Field(int)
+        child = Field(Child)
+
+    conf = Parent({'value': 1, 'child': {'value': 2}})
+    assert conf.parent is None
+    assert conf.child.parent is conf
+
+    assert conf.value == 1
+    assert conf.child.value == 2
+    assert conf.child.parent_value == 1

@@ -296,14 +296,18 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
         else:
             raise ValueError
 
-    def coerce(self, value, type_):
+    def coerce(self, value, type_, parent=None):
         type_or_class = (isclass(type_) or isinstance(type_, type))
         if type_or_class and isinstance(value, type_):
             return value
         elif type_ is bool:
             return self.coerce_bool(value)
         else:
-            return type_(value)
+            if type_or_class and issubclass(type_, Config):
+                kwargs = {'__parent': parent}
+            else:
+                kwargs = {}
+            return type_(value, **kwargs)
 
     def invalid_type(self, type_, value, prefixed):
         if value is None:
@@ -321,7 +325,7 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
             except (TypeError, ValueError):
                 return True
 
-    def normalize(self, config, name, prefix=None):
+    def normalize(self, config, name, prefix=None, parent=None):
         config_key = self._key or name
 
         prefixed = name if prefix is None else '{0}.{1}'.format(prefix, name)
@@ -338,13 +342,13 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
         normalized = conf_value
         for type_ in self.types:
             normalized = self.normalize_field(type_, normalized, name,
-                                              prefixed)
+                                              prefixed, parent=parent)
 
         self.validate(normalized, prefixed, exists)
 
         return name, normalized
 
-    def normalize_field(self, type_, field_value, name, prefixed):
+    def normalize_field(self, type_, field_value, name, prefixed, parent=None):
         if self.invalid_type(type_, field_value, prefixed):
             raise ValidationError('Property {0} is not of type {1}'.format(
                 prefixed, type_.__name__))
@@ -354,7 +358,7 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
 
         if isclass(type_) and issubclass(type_, Config):
             normalized = type_._normalize(field_value, prefix=prefixed)
-            return self.coerce(normalized, type_)
+            return self.coerce(normalized, type_, parent=parent)
         else:
             return self.coerce(field_value, type_)
 
@@ -400,7 +404,7 @@ class ListField(Field):
         else:
             return isinstance(field_value, list)
 
-    def normalize_field(self, type_, field_value, name, prefixed):
+    def normalize_field(self, type_, field_value, name, prefixed, parent=None):
         if not self.is_list(field_value):
             raise ValidationError('Field {0} is not a list'.format(prefixed))
 
@@ -411,7 +415,7 @@ class ListField(Field):
         for i, value in enumerate(field_value):
             prefix = '{0}.{1}'.format(prefixed, i)
             normalized = super(ListField, self).normalize_field(
-                type_, value, name, prefix)
+                type_, value, name, prefix, parent=parent)
             values.append(normalized)
 
         return values
@@ -422,8 +426,7 @@ def normalizer(allow_extra=None):
         allow_extra = True
 
     @classmethod
-    def normalize(cls, config, prefix=None,
-                  allow_extra=allow_extra):
+    def normalize(cls, config, prefix=None, allow_extra=allow_extra, parent=None):
         extra = frozenset(config) - frozenset(cls._fields)
         if extra and not allow_extra:
             raise PropertyError('Encountered unexpected key: {0}{1}'.format(
@@ -431,7 +434,7 @@ def normalizer(allow_extra=None):
                 six.next(iter(extra))))
 
         return NormalizedDict(
-            field.normalize(config, name, prefix=prefix)
+            field.normalize(config, name, prefix=prefix, parent=parent)
             for name, field in cls._fields.items())
 
     return normalize
@@ -523,6 +526,8 @@ class Config(object):
                 'Expected one or fewer arguments, but received {0}'.format(
                     len(args)))
 
+        self._parent = kwargs.pop('__parent', None)
+
         properties = args[0] if args else {}
         if isinstance(properties, NormalizedDict):
             # No need to normalize, since we're already normalized
@@ -531,9 +536,13 @@ class Config(object):
         else:
             combined = properties.copy()
             combined.update(kwargs)
-            normalized = self._normalize(combined)
+            normalized = self._normalize(combined, parent=self)
 
         self._properties = normalized
+
+    @property
+    def parent(self):
+        return self._parent
 
     def __contains__(self, key):
         return key in self._properties
