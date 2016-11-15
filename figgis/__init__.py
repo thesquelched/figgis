@@ -148,20 +148,22 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
                        :meth:`Config.describe`
         """
         type_ = kwargs.get('type', None)
-        required = kwargs.get('required', False)
-        default = kwargs.get('default', NotSpecified)
         validator = kwargs.get('validator', None)
         choices = kwargs.get('choices', None)
-        help = kwargs.get('help', None)
-        hidden = kwargs.get('hidden', False)
-        key = kwargs.get('key', None)
-        nullable = kwargs.get('nullable', True)
+
+        self._required = bool(kwargs.get('required', False))
+        self._default = kwargs.get('default', NotSpecified)
+        self._help = kwargs.get('help', None)
+        self._hidden = bool(kwargs.get('hidden', False))
+        self._key = kwargs.get('key', None)
+        self._nullable = bool(kwargs.get('nullable', True))
+        self._read_only = bool(kwargs.get('read_only', True))
 
         if types and type_:
             raise ValueError("Keyword argument 'type' is not allowed with "
                              "one or more positional arguments")
         elif type_:
-            types += type_
+            types = (type_,)
         elif not types:
             types = (six.text_type,)
 
@@ -169,13 +171,7 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
             validator = [] if validator is None else [validator]
 
         self._types = types
-        self._required = bool(required)
-        self._default = default
         self._choices = set(choices) if choices else None
-        self._help = help
-        self._hidden = bool(hidden)
-        self._key = key
-        self._nullable = bool(nullable)
 
         # Has to be done after all other options are set so that
         # base_validators can correctly create validators from field options
@@ -196,13 +192,16 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
         return True
 
     @property
+    def read_only(self):
+        return self._read_only
+
+    @property
     def types(self):
         return self._types
 
     @property
     def type(self):
-        if len(self._types) != 1:
-            raise SystemExit('Field only has one type')
+        assert len(self._types) == 1, 'Field should only have one type'
 
         return self._types[0]
 
@@ -210,7 +209,7 @@ validator=None, choices=None, help=None, hidden=None, key=None, nullable=True)
     def pretty_type(self):
         try:
             return self.type.__name__
-        except AttributeError:
+        except AttributeError:  # pragma: nocover
             return six.text_type(self.type)
 
     @property
@@ -438,13 +437,21 @@ def normalizer(allow_extra=None):
     return normalize
 
 
-def autoproperty(key, docstring=None):
+def autoproperty(key, docstring=None, read_only=True):
     """
     Create a property for the given key that retrieves the corresponding value
     from self._properties
     """
-    return property(lambda self: self._properties.get(key),
-                    None, None, docstring)
+    def getter(self):
+        return self._properties.get(key)
+
+    def setter(self, value):
+        self._properties[key] = value
+
+    return property(getter,
+                    None if read_only else setter,
+                    None,
+                    docstring)
 
 
 class ConfigMeta(type):
@@ -482,7 +489,7 @@ class ConfigMeta(type):
 
         # Automatic properties
         for key, field in fields.items():
-            dct[key] = autoproperty(key, field.help)
+            dct[key] = autoproperty(key, read_only=field.read_only, docstring=field.help)
 
         return type.__new__(cls, name, bases, dct)
 
@@ -527,12 +534,6 @@ class Config(object):
             normalized = self._normalize(combined)
 
         self._properties = normalized
-
-    def __getitem__(self, key):
-        return self._properties[key]
-
-    def __setitem__(self, key, value):
-        self._properties[key] = value
 
     def __contains__(self, key):
         return key in self._properties

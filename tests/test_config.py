@@ -471,4 +471,54 @@ def test_multiple_types_conf():
         value = Field(lambda x: dict(list(x.items()) + [('foo', 'bar')]),
                       SubConf)
 
-    assert Conf(value={}).value['foo'] == 'bar'
+    assert Conf(value={}).value.foo == 'bar'
+
+
+def test_read_only():
+    class Conf(Config):
+        foo = Field(int)
+        bar = Field(int)
+
+    conf = Conf(foo=1, bar=2)
+    assert conf.foo == 1
+    assert conf.bar == 2
+
+    with pytest.raises(AttributeError):
+        conf.foo = 3
+
+
+def test_read_write():
+    class Conf(Config):
+        foo = Field(int, read_only=False)
+        bar = Field(int)
+
+    conf = Conf(foo=1, bar=2)
+    assert conf.foo == 1
+    assert conf.bar == 2
+
+    conf.foo = 3
+    assert conf.foo == 3
+
+    with pytest.raises(AttributeError):
+        conf.bar = 4
+
+
+def test_type_conflict():
+    with pytest.raises(ValueError):
+        class Conf(Config):
+            value = Field(int, type=int)
+
+
+def test_type_kwarg():
+    class Conf(Config):
+        value = Field(type=int)
+
+    conf = Conf(value=1)
+    assert conf.value == 1
+
+
+def test_invalid_config_args():
+    class Conf(Config):
+        value = Field()
+
+    pytest.raises(TypeError, Conf, 'foo', 'bar')

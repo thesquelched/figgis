@@ -1,3 +1,8 @@
+Version 1.8.0 (2016-11-15)
+--------------------------
+* Add the `read_only` argument to fields
+* Removed getattr/setattr functionality for fields
+
 Version 1.7.0 (2016-03-18)
 --------------------------
 * Allow multiple types for a field, which are applied in-order
